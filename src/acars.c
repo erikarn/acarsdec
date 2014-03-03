@@ -184,7 +184,8 @@ static void * blk_thread(void *arg)
 	if(blkq_e==NULL) blkq_s=NULL;
 	pthread_mutex_unlock(&blkmtx);
 
-	if(blk==NULL) return;
+	if(blk==NULL)
+		return (NULL);
 
 	if(blk->len<13) {
 		if(verbose) fprintf(stderr,"#%d too short\n",blk->chn+1);
