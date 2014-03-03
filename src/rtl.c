@@ -172,7 +172,8 @@ int getRtlSample(void)
 	}
 
 	pthread_mutex_lock(&datamtx);
-	while(wrkmask) pthread_cond_wait(&datawcd, &datamtx);
+	while (wrkmask)
+		pthread_cond_wait(&datawcd, &datamtx);
 	pthread_mutex_unlock(&datamtx);
 
 	/* rought /2 downsamplig */
@@ -215,7 +216,7 @@ void demodAM(channel_t *ch)
 		sincos_ps(p,&sp,&cp);
 #else
   		for(v=0;v<VECLEN;v++) {
-			sincosf(p[v],&(sp[v]),&(cp[v]));
+			//sincosf(p[v],&(sp[v]),&(cp[v]));
 			sp[v] = sinf(p[v]);
 			cp[v] = cosf(p[v]);
 		}
