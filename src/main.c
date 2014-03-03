@@ -24,6 +24,8 @@
 #include <getopt.h>
 #include "acarsdec.h"
 
+#include "rtl.h"
+
 channel_t channel[MAXNBCHANNELS];
 unsigned int  nbch;
 unsigned long wrkmask;
