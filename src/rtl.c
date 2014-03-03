@@ -25,19 +25,25 @@
 #include <rtl-sdr.h>
 #include "acarsdec.h"
 
-#define RTLRATE 24000
-#define RTLMULT 50
+#define RTLRATE 14400
+#define RTLMULT 80
 #define RTLINRATE (RTLRATE*RTLMULT)
-
+#define MDF (RTLINRATE/2-2*RTLRATE)
 
 static	rtlsdr_dev_t *dev=NULL;
 
-#define RTLOUTBUFSZ 128
+#define RTLOUTBUFSZ 256
 #define RTLINBUFSZ (RTLOUTBUFSZ*RTLMULT*2)
-
 static float dsbuff[RTLINBUFSZ/2];
 
-#define MDF (RTLINRATE/2-2*RTLRATE)
+#ifdef USE_SSE2
+#include "sse_mathfun.h"
+#define VECLEN 4
+#else
+#define VECLEN 8
+#endif
+
+
 static unsigned int chooseFc(unsigned int *Fd,unsigned int nbch)
 {
 int n;
@@ -97,11 +103,22 @@ unsigned int Fd[4];
 		fprintf(stderr, "Failed to open rtlsdr device\n");
 		return r;
 	}
-	rtlsdr_set_tuner_gain_mode(dev, 0);
-//	r=rtlsdr_set_tuner_gain(dev,-30);
-//	if (r < 0) {
-//		fprintf(stderr, "WARNING: Failed to set center freq.\n");}
 
+	if(gain > -1000) {
+		rtlsdr_set_tuner_gain_mode(dev, 1);
+		r=rtlsdr_set_tuner_gain(dev,gain);
+		if (r < 0) 
+			fprintf(stderr, "WARNING: Failed to set gain.\n");
+	} else {
+		/* agc */
+		rtlsdr_set_tuner_gain_mode(dev, 0);
+	}
+
+	if(ppm!=0) {
+		r=rtlsdr_set_freq_correction(dev, ppm);
+		if (r < 0) 
+			fprintf(stderr, "WARNING: Failed to set freq. correction\n");
+	}
 
 	nbch=0;
 	while((argF=argv[optind++])) {
@@ -116,9 +133,6 @@ unsigned int Fd[4];
 		ch->Infs=RTLRATE;
 		ch->InBuff=malloc(RTLOUTBUFSZ*sizeof(sample_t));
 		ch->AMFreq=((float)Fd[n]-(float)Fc)/(float)(RTLINRATE/2)*2.0*M_PI;
-
-		ch->AMind=0;
-		ch->AMDownI=ch->AMDownQ=0;
 	}
 	for(;n<MAXNBCHANNELS;n++) channel[n].Infs=0;
 
@@ -171,37 +185,60 @@ int getRtlSample(void)
 
 void demodAM(channel_t *ch)
 {
-	float I,Q,Ir,Qr,cp,sp,p;
-	int i;
- 
-	ch->lenIn=0;
-	for(i=0;i<RTLINBUFSZ/2;i+=2) {
+	int i,len,ind;
+	float DI,DQ,fr,pc;
 
-		I=dsbuff[i];
-		Q=dsbuff[i+1];
+	ind=len=0;
+	DI=DQ=0;
+	pc=ch->AMPhi;
+	fr=ch->AMFreq;
 
-		
-		p=ch->AMPhi+ch->AMFreq;
-		if(p>M_PI) p-=2.0*M_PI;
-		if(p<-M_PI) p+=2.0*M_PI;
-		ch->AMPhi=p;
+	for(i=0;i<RTLINBUFSZ/2;) {
+		float I[VECLEN],Q[VECLEN];
+#ifdef USE_SSE2
+		v4sf p,cp,sp;
+#else
+		float p[VECLEN],cp[VECLEN],sp[VECLEN];
+#endif
+		int v;
 
-		sincosf(p,&sp,&cp);
-		Ir=cp*I+sp*Q;Qr=-sp*I+cp*Q;
-		ch->AMDownI+=Ir;
-		ch->AMDownQ+=Qr;
-		ch->AMind++;
+		for(v=0;v<VECLEN;v++) {
+			pc+=fr;
+			if(pc>M_PI) pc-=2.0*M_PI;
+			if(pc<-M_PI) pc+=2.0*M_PI;
+			((float*)&p)[v]=pc;
+		}
 
-		if(ch->AMind>=RTLMULT/2) {
-			float val;
+#ifdef USE_SSE2
+		sincos_ps(p,&sp,&cp);
+#else
+  		for(v=0;v<VECLEN;v++)
+			sincosf(p[v],&(sp[v]),&(cp[v]));
+#endif
 
-			val=hypot(ch->AMDownI,ch->AMDownQ)/(RTLMULT/2)/256.0;
-			ch->InBuff[ch->lenIn]=val;
+		for(v=0;v<VECLEN;v++) {
+			I[v]=dsbuff[i++];
+			Q[v]=dsbuff[i++];
+		}
 
-			ch->AMind=0;
-			ch->AMDownI=ch->AMDownQ=0;
-			ch->lenIn++;
+		for(v=0;v<VECLEN;v++) {
+#ifdef USE_SSE2
+			DI+=((float*)&cp)[v]*I[v]+((float*)&sp)[v]*Q[v];
+			DQ+=-((float*)&sp)[v]*I[v]+((float*)&cp)[v]*Q[v];
+#else
+			DI+=cp[v]*I[v]+sp[v]*Q[v];
+			DQ+=-sp[v]*I[v]+cp[v]*Q[v];
+#endif
+		}
+
+		ind+=VECLEN;
+		if(ind>=RTLMULT/2) {
+			ch->InBuff[len]=hypot(DI,DQ);
+			ind=0;
+			DI=DQ=0;
+			len++;
 		}
 	}
-		
+	ch->AMPhi=pc;
+	ch->lenIn=len;
 }

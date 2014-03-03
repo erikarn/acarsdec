@@ -53,6 +53,7 @@ int initMsk(channel_t *ch)
 		ch->h[i]=sinf(2*M_PI*600/ch->Infs*(i+1));
 		ch->I[i]=ch->Q[i]=0;
 	}
+
 	return 0;
 }
 
@@ -76,6 +77,15 @@ static float fst_atan2(float y, float x)
    return(angle);
 }
 
+static void putbit(float v,channel_t *ch)
+{
+	ch->outbits>>=1;
+	if(v>0) {
+		ch->outbits|=0x80;
+	} 
+	ch->nbits--;
+	if(ch->nbits<=0)decodeAcars(ch);
+}
 
 void demodMsk(channel_t *ch)
 {

@@ -1,8 +1,3 @@
-
-#define WITH_RTL 1
-#define WITH_SNDFILE 1
-#define WITH_ALSA 1
-
 /*
  *  Copyright (c) 2014 Thierry Leconte (f4dwv)
  *
@@ -22,6 +17,13 @@
  *
  */
 
+
+#define WITH_RTL 1
+#define WITH_SNDFILE 1
+#define WITH_ALSA 1
+#define USE_SSE2
+
+
 #define MAXNBCHANNELS 4
 
 
@@ -34,7 +36,7 @@ typedef struct mskblk_s {
 	unsigned char txt[240];
 	int len;
 	unsigned char crc[2];
-	unsigned char lvl;
+	int lvl;
 } msgblk_t;
 
 typedef struct {
@@ -43,8 +45,6 @@ typedef struct {
 #ifdef WITH_RTL
 	float AMFreq;
 	float AMPhi;
-	int   AMind;
-	float AMDownI,AMDownQ;
 #endif
 	int Infs;
 	sample_t *InBuff;
@@ -73,9 +73,13 @@ typedef struct {
 extern channel_t channel[MAXNBCHANNELS];
 extern unsigned int  nbch;
 extern unsigned long wrkmask;
+
 extern int inpmode;
 extern int verbose;
 extern int outtype;
+extern int airflt;
+extern int gain;
+extern int ppm;
 
 extern pthread_mutex_t datamtx;
 extern pthread_cond_t datawcd;
@@ -97,10 +101,5 @@ extern int  initMsk(channel_t *);
 extern void demodMsk(channel_t *);
 
 extern int  initAcars(channel_t *);
-extern void putbit(float ,channel_t *);
 extern void decodeAcars(channel_t *);
-
-
-extern int initWSoundfile(void);
-extern int writedata(float *buff);
 

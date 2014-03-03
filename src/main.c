@@ -34,16 +34,22 @@ pthread_cond_t datawcd= PTHREAD_COND_INITIALIZER;
 int inpmode=0;
 int verbose=0;
 int outtype=1;
+int airflt=0;
+int gain=-1000;
+int ppm=0;
 
 static void usage(void)
 {
-	fprintf(stderr, "Acarsdec 2.0 	Copyright (c) 2014 Thierry Leconte \n\n");
+	fprintf(stderr, "Acarsdec 2.1 	Copyright (c) 2014 Thierry Leconte \n\n");
 	fprintf(stderr, "Usage: acarsdec  [-v] [-o lv] -a alsapcmdevice  | -f sndfile | -r rtldevicenumber  f1 [f2] [f3] [f4] \n\n");
+	fprintf(stderr, " -v :\t\t\tverbose\n");
+	fprintf(stderr, " -o lv :\t\toutput format : 0 one line by msg., 1 full (default) \n");
+	fprintf(stderr, " -A :\t\t\tdon't display uplink messages (ie : only aircraft messages)\n");
+	fprintf(stderr, " -g gain :\t\tset rtl preamp gain in tenth of db. By default use AGC (ie -g 90 for +9db)\n");
+	fprintf(stderr, " -p ppm :\t\tset rtl ppm frequency correction\n");
 	fprintf(stderr, " -f sndfile :\t\tdecode from sound file (ie: a .wav file)\n");
 	fprintf(stderr, " -a alsapcmdevice :\tdecode from soundcard input alsapcmdevice (ie: hw:0,0)\n");
-	fprintf(stderr, " -r rtldevicenumber  f1 [f2] [f3] [f4] :\tdecode from rtl dongle number rtldevicenumber receiving at VHF frequencies f1 and optionaly f2 to f4 in Mhz (ie : -r 0 131.525 131.725 131.825 )\n\n");
-	fprintf(stderr, " -v :\t\tverbose\n");
-	fprintf(stderr, " -o lv :\t\toutput format : 0 one liner, 1 full (default) \n");
+	fprintf(stderr, " -r rtldevicenumber f1 [f2] [f3] [f4] :\t\tdecode from rtl dongle number rtldevicenumber receiving at VHF frequencies f1 and optionaly f2 to f4 in Mhz (ie : -r 0 131.525 131.725 131.825 )\n\n");
 	fprintf(stderr, "For any input source , up to 4 channels  could be simultanously decoded\n");
 	exit(1);
 }
@@ -66,8 +72,8 @@ static void * demod_thread(void * arg)
 
 	pthread_mutex_lock(&datamtx);
 	wrkmask&=~msk;
-	pthread_cond_broadcast(&datawcd);
 	pthread_mutex_unlock(&datamtx);
+	pthread_cond_broadcast(&datawcd);
 
    } while(1);
 }
@@ -86,7 +92,7 @@ int main(int argc, char **argv)
 	unsigned long msk;
 	struct sigaction sigact;
 
-	while ((c = getopt(argc, argv, "vafro:")) != EOF) {
+	while ((c = getopt(argc, argv, "vafro:g:Ap:")) != EOF) {
 
 
 		switch (c) {
@@ -121,6 +127,15 @@ int main(int argc, char **argv)
 #endif
 			break;
 
+		case 'A':
+			airflt=1;
+			break;
+		case 'g':
+			gain=atoi(optarg);
+			break;
+		case 'p':
+			ppm=atoi(optarg);
+			break;
 		default:
 			usage();
 		}
@@ -199,8 +214,8 @@ int main(int argc, char **argv)
 
 		pthread_mutex_lock(&datamtx);
 		wrkmask=msk;
-		pthread_cond_broadcast(&datawcd);
 		pthread_mutex_unlock(&datamtx);
+		pthread_cond_broadcast(&datawcd);
 
 	} while (1);
 }
