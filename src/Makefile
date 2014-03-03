@@ -1,6 +1,6 @@
 
-CFLAGS=-Ofast -msse2 -ftree-vectorize -funroll-loops -pthread
-LDLIBS= -lm -lsndfile -lasound -lrtlsdr -pthread
+CFLAGS=-Ofast -msse2 -ftree-vectorize -funroll-loops -pthread -I/usr/local/include
+LDLIBS= -L/usr/local/lib -lm -lsndfile -lasound -lrtlsdr -pthread
 
 # BEWARE on non SSE2 processor, undefined USE_SSE2 in acarsdec.h
 
