@@ -25,6 +25,8 @@
 #include <rtl-sdr.h>
 #include "acarsdec.h"
 
+#include "rtl.h"
+
 #define RTLRATE 14400
 #define RTLMULT 80
 #define RTLINRATE (RTLRATE*RTLMULT)
@@ -212,8 +214,11 @@ void demodAM(channel_t *ch)
 #ifdef USE_SSE2
 		sincos_ps(p,&sp,&cp);
 #else
-  		for(v=0;v<VECLEN;v++)
+  		for(v=0;v<VECLEN;v++) {
 			sincosf(p[v],&(sp[v]),&(cp[v]));
+			sp[v] = sinf(p[v]);
+			cp[v] = cosf(p[v]);
+		}
 #endif
 
 		for(v=0;v<VECLEN;v++) {

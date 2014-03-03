@@ -19,6 +19,7 @@
 #define _GNU_SOURCE
 #include <stdlib.h>
 #include <math.h>
+#include <pthread.h>
 #include "acarsdec.h"
 
 #define DCCF 240.0
@@ -153,7 +154,9 @@ void demodMsk(channel_t *ch)
 		ch->Mskdc=(1.0-ch->Mskdcf)*ch->Mskdc+ch->Mskdcf*ch->InBuff[i];
 
 		/* FI */
-		sincosf(p,&sp,&cp);
+		//sincosf(p,&sp,&cp);
+		sp = sinf(p);
+		cp = cosf(p);
 		ch->I[idx]=s*cp;
 		ch->Q[idx]=s*sp;
 
